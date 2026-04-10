@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nology Cashback</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans">
+
+    <nav class="bg-indigo-700 p-4 text-white shadow-lg">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i data-lucide="zap"></i> NOLOGY CASHBACK
+            </h1>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto p-6 grid md:grid-cols-2 gap-8">
+        <section class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+            <h2 class="text-lg font-bold mb-4 text-slate-700">Nova Simulação</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600">Valor Bruto (R$)</label>
+                    <input type="number" id="valor" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Ex: 600">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600">Cupom de Desconto (%)</label>
+                    <input type="number" id="desconto" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Ex: 15">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600">Tipo de Cliente</label>
+                    <select id="tipo" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="COMUM">Comum</option>
+                        <option value="VIP">VIP</option>
+                    </select>
+                </div>
+                <button onclick="enviar()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-all">
+                    Calcular Recompensa
+                </button>
+            </div>
+
+            <div id="resBox" class="hidden mt-6 p-4 bg-green-50 rounded-lg border border-green-200 text-center">
+                <p class="text-green-700 text-sm font-medium">Cashback Calculado:</p>
+                <span id="resValor" class="text-3xl font-black text-green-600">R$ 0,00</span>
+            </div>
+        </section>
+
+        <section class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+            <h2 class="text-lg font-bold mb-4 text-slate-700 flex items-center gap-2">
+                <i data-lucide="history" class="w-4 h-4"></i> Meu Histórico
+            </h2>
+            <div class="overflow-y-auto max-h-[400px]">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-slate-400 border-b">
+                            <th class="py-2 text-left">Tipo</th>
+                            <th class="py-2 text-left">Valor Líquido</th>
+                            <th class="py-2 text-right">Cashback</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historico" class="divide-y"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        lucide.createIcons();
+        const URL_API = 'SUA_URL_DO_RENDER_AQUI';
+
+        async function enviar() {
+            const payload = {
+                valor: document.getElementById('valor').value,
+                desconto: document.getElementById('desconto').value || 0,
+                tipo: document.getElementById('tipo').value
+            };
+
+            const response = await fetch(`${URL_API}/calcular`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            document.getElementById('resValor').innerText = `R$ ${data.cashback.toFixed(2)}`;
+            document.getElementById('resBox').classList.remove('hidden');
+            carregar();
+        }
+
+        async function carregar() {
+            const response = await fetch(`${URL_API}/historico`);
+            const lista = await response.json();
+            document.getElementById('historico').innerHTML = lista.map(i => `
+                <tr>
+                    <td class="py-3 font-bold ${i.tipo === 'VIP' ? 'text-purple-600' : 'text-blue-600'}">${i.tipo}</td>
+                    <td class="py-3 text-slate-600 font-medium">R$ ${i.valor.toFixed(2)}</td>
+                    <td class="py-3 text-right font-black text-green-600">R$ ${i.cashback.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+        carregar();
+    </script>
+</body>
+</html>
