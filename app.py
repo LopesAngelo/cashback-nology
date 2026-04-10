@@ -6,14 +6,44 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Configuração do Banco de Dados
+# Configuração do Banco de Dados (variável que o Render vai fornecer)
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 def obter_conexao():
     return psycopg2.connect(DATABASE_URL)
 
+# --- Cria a tabela automaticamente caso não exista ---
+def criar_tabela():
+    try:
+        # Se estiver rodando local sem a variável, avisa no terminal
+        if not DATABASE_URL:
+            print("DATABASE_URL não configurada ainda. Ignorando criação de tabela.")
+            return
+            
+        conn = obter_conexao()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS historico_cashback (
+                id SERIAL PRIMARY KEY,
+                ip_usuario VARCHAR(45),
+                tipo_cliente VARCHAR(10),
+                valor_compra DECIMAL(10,2),
+                valor_cashback DECIMAL(10,2),
+                data_consulta TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("✅ Tabela verificada/criada com sucesso no banco de dados!")
+    except Exception as e:
+        print(f"❌ Erro ao criar/verificar a tabela: {e}")
+
+# Executa a verificação da tabela assim que o sistema iniciar
+criar_tabela()
+
 # -------------------------------------------------------------------
-# AQUI ENTRA O SEU CÓDIGO (Lógica de Negócio)
+# Lógica de Negócio - Nology Cashback
 # -------------------------------------------------------------------
 def calcular_nology_cashback(valor_bruto, desconto_percentual, eh_vip):
     # Regra Doc 1: Cashback calculado sobre o valor FINAL (após descontos)
@@ -44,35 +74,46 @@ def calcular():
     eh_vip = dados.get('tipo', 'COMUM') == 'VIP'
     ip = request.remote_addr # Identifica o usuário pelo IP
 
-    # Chamamos a SUA função aqui para fazer o cálculo pesado!
-    total = calcular_nology_cashback(valor, desconto, eh_vip)
+    # Chamamos a função de regra de negócio para fazer o cálculo pesado
+    total_cashback = calcular_nology_cashback(valor, desconto, eh_vip)
     
     # Calcula o valor líquido novamente apenas para salvar no histórico
     valor_liquido = valor * (1 - (desconto / 100))
 
-    # Registro no Banco de Dados
-    conn = obter_conexao()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO historico_cashback (ip_usuario, tipo_cliente, valor_compra, valor_cashback) VALUES (%s, %s, %s, %s)",
-        (ip, dados.get('tipo'), valor_liquido, total)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
+    # Tenta salvar no Banco de Dados
+    try:
+        conn = obter_conexao()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO historico_cashback (ip_usuario, tipo_cliente, valor_compra, valor_cashback) VALUES (%s, %s, %s, %s)",
+            (ip, dados.get('tipo'), valor_liquido, total_cashback)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Erro ao salvar no banco: {e}")
+        # Mesmo se houver erro no banco, retornamos o valor para o app não travar
 
-    return jsonify({"cashback": total})
+    return jsonify({"cashback": total_cashback})
 
 @app.route('/historico', methods=['GET'])
 def historico():
     ip = request.remote_addr
-    conn = obter_conexao()
-    cur = conn.cursor()
-    cur.execute("SELECT tipo_cliente, valor_compra, valor_cashback FROM historico_cashback WHERE ip_usuario = %s ORDER BY id DESC", (ip,))
-    linhas = cur.fetchall()
-    cur.close()
-    conn.close()
-    return jsonify([{"tipo": l[0], "valor": float(l[1]), "cashback": float(l[2])} for l in linhas])
+    try:
+        conn = obter_conexao()
+        cur = conn.cursor()
+        cur.execute("SELECT tipo_cliente, valor_compra, valor_cashback FROM historico_cashback WHERE ip_usuario = %s ORDER BY id DESC", (ip,))
+        linhas = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        # Formata os dados para enviar para o Frontend
+        resultado = [{"tipo": l[0], "valor": float(l[1]), "cashback": float(l[2])} for l in linhas]
+        return jsonify(resultado)
+    except Exception as e:
+        print(f"Erro ao buscar histórico: {e}")
+        return jsonify([]) # Retorna lista vazia se der erro, mantendo o app limpo
 
 if __name__ == "__main__":
     app.run()
