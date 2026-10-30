@@ -8,6 +8,10 @@ Aplicação web full-stack para simulação de cashback, desenvolvida com Python
 
 **[Acessar Nology Cashback](https://nology-cashback-frontend.onrender.com)**
 
+## Capturas de tela
+
+![Tela do Nology Cashback](screenshots/nology-cashback-demo.png)
+
 ## Funcionalidades
 
 - Simulação de cashback para clientes comuns e VIP.
