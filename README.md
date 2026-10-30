@@ -1,76 +1,101 @@
 # Nology Cashback
 
-Aplicação web full-stack para simular o cálculo de cashback de uma fintech. O projeto foi desenvolvido como desafio técnico e utiliza Python, Flask, PostgreSQL, HTML, JavaScript e Tailwind CSS.
+[![Testes automatizados](https://github.com/LopesAngelo/cashback-nology/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/LopesAngelo/cashback-nology/actions/workflows/tests.yml)
+
+Aplicação web full-stack para simulação de cashback, desenvolvida com Python, Flask, PostgreSQL, JavaScript e HTML. O projeto implementa regras de negócio, API REST, persistência de dados e testes automatizados com integração contínua.
+
+## Demonstração online
+
+**[Acessar Nology Cashback](https://nology-cashback-frontend.onrender.com)**
 
 ## Funcionalidades
 
-- Cálculo de cashback sobre o valor líquido da compra.
-- Cashback base de 5%.
-- Bônus VIP de 10% sobre o cashback base.
-- Cashback dobrado quando o valor líquido da compra é superior a R$ 500,00.
-- Registro e consulta do histórico de simulações.
-- Interface responsiva para realizar simulações.
+- Simulação de cashback para clientes comuns e VIP.
+- Aplicação de descontos sobre o valor bruto da compra.
+- Cálculo financeiro com `Decimal` e arredondamento comercial.
+- Cashback diferenciado para clientes VIP.
+- Cashback dobrado para compras com valor líquido superior a R$ 500,00.
+- Histórico de simulações armazenado no PostgreSQL.
+- Identificação de histórico por navegador.
+- Interface responsiva.
+- Validação de dados no frontend e backend.
+- Tratamento de erros da API.
 
 ## Regras de negócio
 
-A aplicação executa as regras nesta ordem:
+O cálculo segue estas regras:
 
-1. Aplica o desconto sobre o valor bruto da compra.
+1. Aplica o desconto informado sobre o valor bruto.
 2. Calcula 5% de cashback sobre o valor líquido.
-3. Para clientes VIP, acrescenta 10% sobre o cashback base.
-4. Quando o valor líquido é superior a R$ 500,00, dobra o cashback total.
+3. Clientes VIP recebem um adicional de 10% sobre o cashback base.
+4. Compras com valor líquido superior a R$ 500,00 recebem cashback dobrado.
 
-Exemplos:
-
-| Valor líquido | Tipo | Cashback |
+| Valor líquido | Cliente | Cashback |
 |---:|---|---:|
-| R$ 200,00 | COMUM | R$ 10,00 |
+| R$ 200,00 | Comum | R$ 10,00 |
 | R$ 200,00 | VIP | R$ 11,00 |
-| R$ 500,00 | COMUM | R$ 25,00 |
-| R$ 501,00 | COMUM | R$ 50,10 |
-| R$ 501,00 | VIP | R$ 55,11 |
+| R$ 500,00 | Comum | R$ 25,00 |
+| R$ 501,00 | Comum | R$ 50,10 |
+| R$ 600,00 | VIP | R$ 66,00 |
 
-Os valores monetários são calculados com `Decimal` e arredondamento comercial para duas casas decimais.
+## Tecnologias utilizadas
 
-## Tecnologias
+**Backend**
+- Python
+- Flask
+- Flask-CORS
+- Gunicorn
 
-- **Backend:** Python e Flask.
-- **Banco de dados:** PostgreSQL com psycopg2.
-- **Frontend:** HTML5, JavaScript e Tailwind CSS.
-- **API:** endpoints HTTP/JSON.
-- **Testes:** pytest.
+**Banco de dados**
+- PostgreSQL
+- psycopg2
 
-## Estrutura do projeto
+**Frontend**
+- HTML5
+- JavaScript
+- Tailwind CSS
 
-```text
-cashback-nology/
-├── .github/workflows/tests.yml
-├── tests/test_cashback.py
-├── app.py
-├── index.html
-├── requirements.txt
-├── .env.example
-├── .gitignore
-└── README.md
-```
+**Qualidade e automação**
+- pytest
+- Git e GitHub
+- GitHub Actions
+- Integração contínua (CI)
+
+**Deploy**
+- Render
+- Neon PostgreSQL
+
+## Arquitetura
+
+O projeto utiliza uma arquitetura separada em frontend, backend e banco de dados.
+
+- Frontend: interface responsável pela interação com o usuário.
+- Backend: API Flask responsável pelas validações e regras de negócio.
+- PostgreSQL: armazenamento persistente do histórico.
+- GitHub Actions: execução automática dos testes a cada atualização do repositório.
+
+## Endpoints da API
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| GET | `/health` | Verifica o estado básico da aplicação e a configuração do banco |
+| POST | `/calcular` | Calcula o cashback e tenta registrar a simulação |
+| GET | `/historico` | Consulta as simulações do navegador |
+
+As rotas de cálculo e histórico utilizam o cabeçalho `X-Client-ID` para identificar o navegador.
 
 ## Como executar localmente
 
-### 1. Pré-requisitos
-
-- Python 3.10 ou superior.
-- PostgreSQL (opcional para testar apenas o cálculo; necessário para persistir o histórico).
-
-### 2. Clonar o repositório
+### 1. Clonar o repositório
 
 ```bash
 git clone https://github.com/LopesAngelo/cashback-nology.git
 cd cashback-nology
 ```
 
-### 3. Criar e ativar um ambiente virtual
+### 2. Criar ambiente virtual
 
-Windows PowerShell:
+Windows:
 
 ```powershell
 py -m venv .venv
@@ -84,131 +109,81 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 4. Instalar dependências
+### 3. Instalar dependências
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. Configurar o banco de dados (opcional)
+### 4. Configurar variáveis de ambiente
 
-Crie um banco PostgreSQL e defina a variável de ambiente `DATABASE_URL`.
+Configure a variável `DATABASE_URL` com a string de conexão do PostgreSQL.
 
-Windows PowerShell:
+Exemplo no PowerShell:
 
 ```powershell
 $env:DATABASE_URL="postgresql://usuario:senha@localhost:5432/nology_cashback"
 $env:CORS_ORIGINS="http://127.0.0.1:5500,http://localhost:5500"
 ```
 
-Linux/macOS:
-
-```bash
-export DATABASE_URL="postgresql://usuario:senha@localhost:5432/nology_cashback"
-export CORS_ORIGINS="http://127.0.0.1:5500,http://localhost:5500"
-```
-
-A tabela e o índice de histórico são criados automaticamente quando a aplicação inicia. O código também adiciona a coluna `client_id` a uma tabela criada pela versão anterior.
-
-Sem `DATABASE_URL`, a API ainda calcula o cashback, mas não persiste o histórico. O endpoint de histórico retorna HTTP 503 nessa situação.
-
-### 6. Iniciar o backend
+### 5. Executar o backend
 
 ```bash
 python app.py
 ```
 
-A API ficará disponível em `http://localhost:5000`.
+A API ficará disponível em:
 
-### 7. Abrir o frontend
-
-Abra `index.html` com uma extensão de servidor local, como Live Server (porta 5500). Para trabalhar localmente, altere a constante `URL_API` no início do script para `http://localhost:5000`.
-
-No deploy, configure `CORS_ORIGINS` no ambiente do backend com a origem exata do site que hospeda o frontend. Não inclua caminhos, apenas esquema, domínio e porta, quando houver.
-
-## Endpoints da API
-
-### `POST /calcular`
-
-Calcula o cashback e tenta salvar a simulação.
-
-Cabeçalho obrigatório:
-
-```http
-X-Client-ID: <64 caracteres hexadecimais>
-Content-Type: application/json
+```text
+http://localhost:5000
 ```
 
-Exemplo de corpo:
+### 6. Executar o frontend
 
-```json
-{
-  "valor": 600.00,
-  "desconto": 10,
-  "tipo": "VIP"
-}
+Abra o arquivo `index.html` usando uma extensão de servidor local, como Live Server.
+
+Durante o desenvolvimento local, configure a constante `URL_API` no JavaScript para:
+
+```javascript
+const URL_API = "http://localhost:5000";
 ```
 
-Exemplo de resposta:
-
-```json
-{
-  "valor_liquido": "540.00",
-  "cashback": "59.40",
-  "persistido": true,
-  "aviso": null
-}
-```
-
-Validações aplicadas no backend:
-
-- Valor da compra maior que zero e dentro do limite suportado pelo banco.
-- Desconto entre 0% e 100%.
-- Tipo de cliente igual a `COMUM` ou `VIP`.
-- JSON válido e identificador do navegador válido.
-
-### `GET /historico`
-
-Retorna até as 100 simulações mais recentes associadas ao identificador enviado no cabeçalho `X-Client-ID`.
-
-### `GET /health`
-
-Retorna o estado básico da aplicação e informa se `DATABASE_URL` foi configurada.
-
-## Identificação do histórico
-
-O frontend gera um identificador aleatório de 256 bits e o mantém no `localStorage` do navegador. A API usa esse identificador para separar os históricos, em vez de usar o endereço IP.
-
-**Limitação importante:** esse mecanismo identifica uma instalação do navegador, não uma pessoa autenticada. Não substitui cadastro, login ou autorização de usuários. Limpar os dados do navegador gera um novo identificador, e o histórico anterior deixa de aparecer nesse navegador. Não armazene informações sensíveis nesse protótipo.
+Sem `DATABASE_URL`, o cálculo ainda pode funcionar, mas o histórico não será persistido.
 
 ## Testes automatizados
+
+O projeto utiliza pytest para verificar as regras de negócio, validações da API e comportamentos sem banco configurado.
 
 Execute:
 
 ```bash
-pytest -q
+python -m pytest -q
 ```
 
-Os testes cobrem as regras de cálculo, limites de desconto e valor, validação dos dados da API e comportamento sem banco configurado.
+Os testes são executados automaticamente pelo GitHub Actions em atualizações da branch `main` e em pull requests.
 
-## Configurações de deploy
+## Variáveis de ambiente
 
-Configure no serviço de backend:
+| Variável | Finalidade |
+|---|---|
+| `DATABASE_URL` | Conexão com o PostgreSQL |
+| `CORS_ORIGINS` | Origens autorizadas a consumir a API |
+| `PORT` | Porta de execução do backend |
 
-- `DATABASE_URL`: string de conexão PostgreSQL.
-- `CORS_ORIGINS`: origem do frontend. Exemplo: `https://seu-site.example`.
+Não inclua credenciais ou senhas no repositório.
 
-O valor padrão de `CORS_ORIGINS` é `*` para facilitar a execução local. Em produção, configure as origens permitidas explicitamente.
+## Observações técnicas
 
-## Próximas evoluções
+O histórico utiliza um identificador aleatório armazenado no `localStorage` do navegador. Esse mecanismo não representa autenticação real e não substitui cadastro, login ou autorização de usuários.
 
-- Autenticação real de usuários.
-- Migrações de banco versionadas.
-- Limitação de requisições (rate limiting).
-- Paginação do histórico.
-- Pipeline de integração contínua.
-- Testes de integração com PostgreSQL.
+O projeto é uma demonstração técnica e pode ser evoluído para uso em produção com autenticação, autorização, limitação de requisições e migrações de banco versionadas.
 
 ## Autor
 
-Angelo Lopes — [GitHub](https://github.com/LopesAngelo)
+**Angelo Lopes**
+
+Estudante de Engenharia de Software, interessado em desenvolvimento de software e construção de aplicações web.
+
+- [GitHub](https://github.com/LopesAngelo)
+- [Repositório Nology Cashback](https://github.com/LopesAngelo/cashback-nology)
+- [Demonstração online](https://nology-cashback-frontend.onrender.com)
