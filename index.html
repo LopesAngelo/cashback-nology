@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nology Cashback</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans">
+    <nav class="bg-indigo-700 p-4 text-white shadow-lg">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i data-lucide="zap"></i> NOLOGY CASHBACK
+            </h1>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto p-6 grid md:grid-cols-2 gap-8">
+        <section class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+            <h2 class="text-lg font-bold mb-4 text-slate-700">Nova Simulação</h2>
+
+            <form id="formulario" class="space-y-4">
+                <div>
+                    <label for="valor" class="block text-sm font-medium text-slate-600">Valor Bruto (R$)</label>
+                    <input type="number" id="valor" min="0.01" step="0.01" required
+                        class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="Ex: 600">
+                </div>
+                <div>
+                    <label for="desconto" class="block text-sm font-medium text-slate-600">Cupom de Desconto (%)</label>
+                    <input type="number" id="desconto" min="0" max="100" step="0.01" value="0"
+                        class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="Ex: 15">
+                </div>
+                <div>
+                    <label for="tipo" class="block text-sm font-medium text-slate-600">Tipo de Cliente</label>
+                    <select id="tipo" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="COMUM">Comum</option>
+                        <option value="VIP">VIP</option>
+                    </select>
+                </div>
+                <button id="btnCalcular" type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold py-3 rounded-lg transition-all">
+                    Calcular Recompensa
+                </button>
+            </form>
+
+            <div id="resBox" class="hidden mt-6 p-4 bg-green-50 rounded-lg border border-green-200 text-center" aria-live="polite">
+                <p class="text-green-700 text-sm font-medium">Cashback Calculado:</p>
+                <span id="resValor" class="text-3xl font-black text-green-600">R$ 0,00</span>
+            </div>
+            <p id="mensagem" class="mt-4 text-sm" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+            <h2 class="text-lg font-bold mb-4 text-slate-700 flex items-center gap-2">
+                <i data-lucide="history" class="w-4 h-4"></i> Meu Histórico neste navegador
+            </h2>
+            <div class="overflow-y-auto max-h-[400px]">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-slate-400 border-b">
+                            <th class="py-2 text-left">Tipo</th>
+                            <th class="py-2 text-left">Valor Líquido</th>
+                            <th class="py-2 text-right">Cashback</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historico" class="divide-y"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        // Em desenvolvimento local, altere para http://localhost:5000.
+        const URL_API = (window.NOLOGY_API_URL || "https://cashback-nology.onrender.com").replace(/\/+$/, "");
+        const CHAVE_CLIENTE = "nology_cashback_client_id";
+        const PADRAO_CLIENTE = /^[a-f0-9]{64}$/;
+
+        function obterClientId() {
+            let clientId = localStorage.getItem(CHAVE_CLIENTE);
+            if (!clientId || !PADRAO_CLIENTE.test(clientId)) {
+                const bytes = new Uint8Array(32);
+                if (!window.crypto || !window.crypto.getRandomValues) {
+                    throw new Error("Este navegador não oferece geração segura de identificadores.");
+                }
+                window.crypto.getRandomValues(bytes);
+                clientId = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+                localStorage.setItem(CHAVE_CLIENTE, clientId);
+            }
+            return clientId;
+        }
+
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat("pt-BR", {
+                style: "currency",
+                currency: "BRL"
+            }).format(Number(valor));
+        }
+
+        function mostrarMensagem(texto, erro = false) {
+            const elemento = document.getElementById("mensagem");
+            elemento.textContent = texto || "";
+            elemento.className = erro
+                ? "mt-4 text-sm text-red-600"
+                : "mt-4 text-sm text-slate-600";
+        }
+
+        async function requisitarApi(caminho, opcoes = {}) {
+            const headers = new Headers(opcoes.headers || {});
+            headers.set("X-Client-ID", obterClientId());
+            if (opcoes.body) headers.set("Content-Type", "application/json");
+
+            let resposta;
+            try {
+                resposta = await fetch(URL_API + caminho, { ...opcoes, headers });
+            } catch (erro) {
+                throw new Error("Não foi possível conectar ao servidor. Verifique sua conexão.");
+            }
+
+            let dados;
+            try {
+                dados = await resposta.json();
+            } catch (erro) {
+                throw new Error("O servidor retornou uma resposta inválida.");
+            }
+            if (!resposta.ok) {
+                throw new Error(dados.erro || "Ocorreu um erro ao processar a solicitação.");
+            }
+            return dados;
+        }
+
+        function renderizarHistorico(lista) {
+            const corpo = document.getElementById("historico");
+            corpo.replaceChildren();
+
+            if (!lista.length) {
+                const linha = document.createElement("tr");
+                const celula = document.createElement("td");
+                celula.colSpan = 3;
+                celula.className = "py-4 text-center text-slate-400";
+                celula.textContent = "Nenhuma simulação registrada neste navegador.";
+                linha.appendChild(celula);
+                corpo.appendChild(linha);
+                return;
+            }
+
+            lista.forEach(item => {
+                const linha = document.createElement("tr");
+                const tipo = document.createElement("td");
+                const valor = document.createElement("td");
+                const cashback = document.createElement("td");
+
+                tipo.className = "py-3 font-bold";
+                tipo.classList.add(item.tipo === "VIP" ? "text-purple-600" : "text-blue-600");
+                tipo.textContent = item.tipo;
+                valor.className = "py-3 text-slate-600 font-medium";
+                valor.textContent = formatarMoeda(item.valor);
+                cashback.className = "py-3 text-right font-black text-green-600";
+                cashback.textContent = formatarMoeda(item.cashback);
+
+                linha.append(tipo, valor, cashback);
+                corpo.appendChild(linha);
+            });
+        }
+
+        async function carregarHistorico() {
+            try {
+                const lista = await requisitarApi("/historico");
+                renderizarHistorico(lista);
+            } catch (erro) {
+                renderizarHistorico([]);
+                mostrarMensagem(erro.message, true);
+            }
+        }
+
+        async function enviar(evento) {
+            evento.preventDefault();
+            const valor = Number(document.getElementById("valor").value);
+            const descontoCampo = document.getElementById("desconto").value;
+            const desconto = descontoCampo === "" ? 0 : Number(descontoCampo);
+            const tipo = document.getElementById("tipo").value;
+            const botao = document.getElementById("btnCalcular");
+
+            if (!Number.isFinite(valor) || valor <= 0) {
+                mostrarMensagem("Informe um valor de compra maior que zero.", true);
+                return;
+            }
+            if (!Number.isFinite(desconto) || desconto < 0 || desconto > 100) {
+                mostrarMensagem("O desconto deve estar entre 0% e 100%.", true);
+                return;
+            }
+
+            botao.disabled = true;
+            botao.textContent = "Calculando...";
+            try {
+                const dados = await requisitarApi("/calcular", {
+                    method: "POST",
+                    body: JSON.stringify({ valor, desconto, tipo })
+                });
+                document.getElementById("resValor").textContent = formatarMoeda(dados.cashback);
+                document.getElementById("resBox").classList.remove("hidden");
+
+                if (dados.persistido) {
+                    mostrarMensagem("Cálculo realizado e histórico salvo com sucesso.");
+                    await carregarHistorico();
+                } else {
+                    mostrarMensagem(
+                        dados.aviso || "Cálculo realizado, mas o histórico não foi salvo.",
+                        true
+                    );
+                }
+            } catch (erro) {
+                mostrarMensagem(erro.message, true);
+            } finally {
+                botao.disabled = false;
+                botao.textContent = "Calcular Recompensa";
+            }
+        }
+
+        document.getElementById("formulario").addEventListener("submit", enviar);
+        carregarHistorico();
+    </script>
+</body>
+</html>
